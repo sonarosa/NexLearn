@@ -14,7 +14,9 @@ if not API_KEY:
 GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={API_KEY}"
 
 # In-memory store for current game session data
-current_game_data = {}
+playerName = None
+playerSpecies = None
+playerJob = None
 
 @app.route("/generate_story", methods=["POST"])
 def generate_story():
@@ -42,12 +44,12 @@ def generate_story():
     # Read the PDF file content
     document_content = document_file.read() """
 
-    document = "When we walk or ride a bicycle, we are using up energy. Even when we are not doing any apparent activity, energy is needed to maintain a state of order in our body. We also need materials from outside in orderto grow, develop, synthesise protein and other substances needed inthe body. This source of energy and materials is the food we eat.How do living things get their food?The general requirement for energy and materials is common in allorganisms, but it is fulfilled in different ways. Some organisms use simplefood material obtained from inorganic sources in the form of carbondioxide and water. These organisms, the autotrophs, include greenplants and some bacteria. Other organisms utilise complex substances.These complex substances have to be broken down into simpler onesbefore they can be used for the upkeep and growth of the body. Toachieve this, organisms use bio-catalysts called enzymes. Thus, theheterotrophs survival depends directly or indirectly on autotrophs.Heterotrophic organisms include animals and fungi."
-    playerName = 'Hero'
-    playerSpecies = 'elf'
-    playerJob = 'warrior'
+    document = "The first clear expression of nationalism came withthe French Revolution in 1789. France, as youwould remember, was a full-fledged territorial statein 1789 under the rule of an absolute monarch.The political and constitutional changes that camein the wake of the French Revolution led to thetransfer of sovereignty from the monarchy to abody of French citizens. The revolution proclaimedthat it was the people who would henceforthconstitute the nation and shape its destiny.From the very beginning, the French revolutionariesintroduced various measures and practices thatcould create a sense of collective identity amongstthe French people. The ideas of la patrie (thefatherland) and le citoyen (the citizen) emphasisedthe notion of a united community enjoying equal rights under aconstitution. A new French flag, the tricolour, was chosen to replacethe former royal standard. The Estates General was elected by thebody of active citizens and renamed the National Assembly. Newhymns were composed, oaths taken and martyrs commemorated,all in the name of the nation. A centralised administrative systemwas put in place and it formulated uniform laws for all citizenswithin its territory. Internal customs duties and dues were abolishedand a uniform system of weights and measures was adopted.Regional dialects were discouraged and French, as it was spokenand written in Paris, became the common language of the nation.The revolutionaries further declared that it was the mission and thedestiny of the French nation to liberate the peoples of Europefrom despotism, in other words to help other peoples of Europeto become nations.When the news of the events in France reached the different citiesof Europe, students and other members of educated middle classesbegan setting up Jacobin clubs. Their activities and campaignsprepared the way for the French armies which moved into Holland,Belgium, Switzerland and much of Italy in the 1790s. With theoutbreak of the revolutionary wars, the French armies began tocarry the idea of nationalism abroad."
+    playerName = 'William'
+    playerSpecies = 'human male'
+    playerJob = 'gun man'
     gamePrompt = f"""
-You are tasked with creating a gamified learning platform inspired by Dungeons and Dragons. Your role is to generate an immersive story, random encounters, and dynamic questlines, along with rewards and penalties to enhance the learning experience. A document will be provided, and the entire story should be based on that. The document covers a subject or a part of it. Make sure the story has flow in it.
+You are tasked with creating a gamified learning platform inspired by Dungeons and Dragons. Unlike D&D it doesn;t have to be always medievel themed. Your role is to generate an immersive story, random encounters, and dynamic questlines, along with rewards and penalties to enhance the learning experience. A document will be provided, and the entire story should be based on that. The document covers a subject or a part of it. Make sure the story has flow in it.
 
 Player Information:
 - Player Name: {playerName}
@@ -111,7 +113,6 @@ Document Integration:
         storyResponse = response.json()
         # return storyResponse
         storyElements = extractStoryElements(storyResponse)
-        current_game_data[playerName] = storyElements
         return jsonify(storyElements)
     
     except requests.exceptions.RequestException as e:
@@ -162,40 +163,44 @@ def extractOptions(content):
     return options
 
 @app.route("/player_input", methods=["POST"])
-def player_input():
-    player_name = request.json.get('player_name')
-    action = request.json.get('action')  # The player's chosen action
-    dice_rolls = request.json.get('dice_rolls', {})  # Dice rolls sent by the player
+def playerInput():
+    #action = request.json.get('action') 
+    #roll = request.json.get('roll', {})  
 
-    if player_name not in current_game_data:
-        return jsonify({'error': 'Player not found. Please generate a story first.'}), 404
+    action = "Support the King and the old order, defend the established system, and learn about the perspective of the aristocracy."
+    roll = 12
 
-    # Fetch the current game data for the player
-    game_data = current_game_data[player_name]
-
-    # Process the player's action and dice rolls (add your game logic here)
-    result = process_player_action(game_data, action, dice_rolls)
-
-    # Optionally, update the game state based on the player's action
-    update_game_state(player_name, result)
+    result = processAction(action, roll)
 
     return jsonify(result)
 
-def process_player_action(game_data, action, dice_rolls):
-    # Example game logic to process the player's action
-    # This should include your game mechanics for determining the outcome based on the action and dice rolls
-    response = {
-        "action": action,
-        "outcome": "Action processed successfully",  # Placeholder outcome
-        "game_data": game_data,  # Return the current game data
-        "dice_rolls": dice_rolls  # Echo the received dice rolls
-    }
-    
-    return response
+def processAction( action, roll):
+    """ Process the player's action and update the story based on their choice. """
+    response = continueStory(action, roll)
+    storyElements = extractStoryElements(response)
+    return storyElements
 
-def update_game_state(player_name, result):
-    # Update game state based on the result of the player's action
-    pass  # Implement your game state management here
+def continueStory(action, roll):
+    """ Placeholder function to generate a new story based on the player's chosen action. """
+    prompt = f"The player chose the action: {action}. Player Name: {playerName}, Species: {playerSpecies}, Job: {playerJob}. with a dice roll of {roll}"
+    
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt}
+                ]
+            }
+        ]
+    }
+
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    response = requests.post(GEMINI_API_URL, headers=headers, json=payload)
+    response.raise_for_status() 
+
+    return response.json()
 
 if __name__ == "__main__":
     app.run(debug=True)
