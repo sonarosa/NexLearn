@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamified Learning</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .quest { margin: 20px; padding: 10px; border: 1px solid #ccc; }
+        .options { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Gamified Learning Experience</h1>
+    <div id="quests"></div>
+    <script>
+        async function fetchQuests() {
+            const response = await fetch('http://127.0.0.1:5000/quests');
+            const quests = await response.json();
+            const questsContainer = document.getElementById('quests');
+
+            quests.forEach(quest => {
+                const questDiv = document.createElement('div');
+                questDiv.className = 'quest';
+                questDiv.innerHTML = `<h3>${quest.title}</h3><p>${quest.description}</p>`;
+                questsContainer.appendChild(questDiv);
+            });
+
+            await fetchOptions();
+        }
+
+        async function fetchOptions() {
+            const response = await fetch('http://127.0.0.1:5000/options');
+            const options = await response.json();
+
+            const questsContainer = document.getElementById('quests');
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'options';
+
+            options.forEach(option => {
+                const optionButton = document.createElement('button');
+                optionButton.innerHTML = `${option.action} - ${option.description}`;
+                optionButton.onclick = () => alert(`You chose to: ${option.action}`);
+                optionsDiv.appendChild(optionButton);
+            });
+
+            questsContainer.appendChild(optionsDiv);
+        }
+
+        // Fetch quests on page load
+        window.onload = fetchQuests;
+    </script>
+</body>
+</html>
