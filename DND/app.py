@@ -19,7 +19,7 @@ current_game_data = {}
 @app.route("/generate_story", methods=["POST"])
 def generate_story():
     # Check if the request contains the required files and JSON data
-
+    """
     if not request.is_json:
         return jsonify({'error': 'Request must be JSON'}), 400
 
@@ -40,9 +40,13 @@ def generate_story():
     playerJob = request.json.get('player_job', 'Warrior')
 
     # Read the PDF file content
-    document_content = document_file.read() 
+    document_content = document_file.read() """
 
-    input_text = f"""
+    document = "When we walk or ride a bicycle, we are using up energy. Even when we are not doing any apparent activity, energy is needed to maintain a state of order in our body. We also need materials from outside in orderto grow, develop, synthesise protein and other substances needed inthe body. This source of energy and materials is the food we eat.How do living things get their food?The general requirement for energy and materials is common in allorganisms, but it is fulfilled in different ways. Some organisms use simplefood material obtained from inorganic sources in the form of carbondioxide and water. These organisms, the autotrophs, include greenplants and some bacteria. Other organisms utilise complex substances.These complex substances have to be broken down into simpler onesbefore they can be used for the upkeep and growth of the body. Toachieve this, organisms use bio-catalysts called enzymes. Thus, theheterotrophs survival depends directly or indirectly on autotrophs.Heterotrophic organisms include animals and fungi."
+    playerName = 'Hero'
+    playerSpecies = 'elf'
+    playerJob = 'warrior'
+    gamePrompt = f"""
 You are tasked with creating a gamified learning platform inspired by Dungeons and Dragons. Your role is to generate an immersive story, random encounters, and dynamic questlines, along with rewards and penalties to enhance the learning experience. A document will be provided, and the entire story should be based on that. The document covers a subject or a part of it. Make sure the story has flow in it.
 
 Player Information:
@@ -50,7 +54,7 @@ Player Information:
 - Player Species: {playerSpecies} (e.g., human, elf, dwarf, orc)
 - Player Class/Job: {playerJob} (e.g., wizard, warrior, rogue)
 
-Story Requirements, and Make it a key-value pairs:
+Story Requirements, use these exact key words and no additional information and Make it a key-value pairs:
 1. Title: Generate a creative and engaging title for the player’s adventure.
 2. Story Overview: Summarize the player’s quest, their objectives, and the world they are exploring.
 3. Dialogues: Create conversations between the player and NPCs, presenting choices that can affect the player’s journey.
@@ -84,14 +88,14 @@ Rewards & Penalties:
 2. Failure Penalties: Specify penalties (e.g., losing health, reducing experience points) for failing quests or losing battles.
 
 Document Integration:
-- If a document ({document_content}) is provided, integrate its content meaningfully into the story progression or player tasks.
+- If a document ({document}) is provided, integrate its content meaningfully into the story progression or player tasks.
 """
 
     payload = {
         "contents": [
             {
                 "parts": [
-                    {"text": input_text}
+                    {"text": gamePrompt}
                 ]
             }
         ]
@@ -102,51 +106,60 @@ Document Integration:
     }
 
     try:
-        # Make the API call
         response = requests.post(GEMINI_API_URL, headers=headers, json=payload)
         response.raise_for_status()  
-        story_response = response.json()
-
-        # Extract relevant information from the story_response
-        structured_data = extract_story_elements(story_response)
-
-        # Store the structured data in the current game session
-        current_game_data[playerName] = structured_data
-
-        return jsonify(structured_data)
+        storyResponse = response.json()
+        # return storyResponse
+        storyElements = extractStoryElements(storyResponse)
+        current_game_data[playerName] = storyElements
+        return jsonify(storyElements)
     
     except requests.exceptions.RequestException as e:
         return jsonify({'error': str(e)}), 500
 
-def extract_story_elements(story_response):
-    """
-    Extracts title, description, options, and conversations from the story response.
-    Adjust this function based on the actual response structure from the API.
-    """
-    generated_content = story_response.get("generatedContent", "")
-    title = extract_title(generated_content)
-    description = extract_description(generated_content)
-    options = extract_options(generated_content)
-    conversations = extract_conversations(generated_content)
+
+def extractStoryElements(storyResponse):
+    """ Extracts title, description, options, and conversations from the story response. """
+    content     = storyResponse["candidates"][0]["content"]["parts"][0]["text"]
+    
+    title       = extractTitle(content)
+    description = extractDescription(content)
+    dialogues   = extractConversations(content)
+    options     = extractOptions(content)
 
     return {
         "title": title,
         "description": description,
+        "dialogues": dialogues,
         "options": options,
-        "conversations": conversations,
     }
 
-def extract_title(generated_content):
-    return generated_content.split('\n')[1]  # Placeholder logic
 
-def extract_description(generated_content):
-    return generated_content.split('\n')[2:]  # Placeholder logic
+def extractTitle(content):
+    start   = content.find("**Title:**") + len("**Title:**")
+    end     = content.find("\n2", start)
+    Title   = content[start:end].strip()
+    return Title
 
-def extract_options(generated_content):
-    return ["Option 1", "Option 2"]  # Placeholder logic
+def extractDescription(content):
+    start       = content.find("**Story Overview:**") + len("**Story Overview:**")
+    end         = content.find("\n3.", start)
+    description =  content[start:end].strip()
+    return description
 
-def extract_conversations(generated_content):
-    return ["Conversation 1", "Conversation 2"]  # Placeholder logic
+def extractConversations(content):
+    dialogues = content.find("**Dialogues:**") + len("**Dialogues:**")
+    end = content.find("\n4.", dialogues)
+    dialoguesSections = content[dialogues:end].strip()
+    dialogues = [dia.strip() for dia in dialoguesSections.split("\\n") if dia]
+    return dialogues
+
+def extractOptions(content):
+    start = content.find("**Options for Players:**") + len("**Options for Players:**")
+    end = content.find("\n5.", start)
+    optionsSections = content[start:end].strip()
+    options = [opt.strip() for opt in optionsSections.split("\\n") if opt]
+    return options
 
 @app.route("/player_input", methods=["POST"])
 def player_input():
